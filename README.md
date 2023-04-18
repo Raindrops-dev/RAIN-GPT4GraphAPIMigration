@@ -30,6 +30,7 @@ This will convert the input script (`C:\Scripts\Script1.ps1`) and save the conve
 ## Notes
 
 This script leverages GPT4 to speed up and automate the process of migrating scripts from the old Azure AD or MSOL PowerShell modules to the new Microsoft Graph PowerShell module.
+
 It gathers the cmdlets from the provided scripts, gets the cmdlet mapping between the old MSOL/AzureAD commands and the new Graph API ones from Microsoft Learn, gathers the Documentation for the concerned Graph API cmdlets to bypass the issue of GPT4's data being capped in 2021 and then sends an API call to GPT4 with the documentation and the script to migrate.
 
 Warning: GPT4 API is expensive, be sure to put usage limits in the OpenAI console!
