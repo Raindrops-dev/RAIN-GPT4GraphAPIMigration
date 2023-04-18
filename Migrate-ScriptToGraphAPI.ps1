@@ -30,7 +30,7 @@
 Param(
     [Parameter(Mandatory = $true, HelpMessage = "The path to the script to be converted.")]
     [ValidateScript({ Test-Path $_ -PathType Leaf })]
-    [string]$ScriptPath = "E:\Work\Code\RAIN-TechCommunityContributions\Get-AzureAdGroupMembership.ps1",
+    [string]$ScriptPath = ".\Test\testmd.ps1",
 
     [Parameter(Mandatory = $false, HelpMessage = "The path to the output file. If not specified, the script will be saved in the same folder as the original script.")]
     [ValidateScript({ Test-Path $_ -PathType Leaf })]
@@ -97,7 +97,7 @@ $FinalRequest += $ScriptTosend
 $Headers = [ordered]@{
     "Content-Type"  = "application/json";
     "Authorization" = "Bearer $token"
-  }
+}
 
 #Defining the request body
 Write-Host "Defining the request body..."
@@ -142,3 +142,13 @@ Write-Host "Your query was:" -ForegroundColor Green
 Write-Output $FinalRequest
 Write-Host "The response from OpenAI was:" -ForegroundColor Green
 Write-Output $content
+
+#Saving the output to a file
+Write-Output "Checking if the output path has been provided to save the output to a file..."
+if ($OutputPath) {
+    Write-Output "Output path has been provided. Saving the output to a file..."
+    $content | Out-File -FilePath $OutputPath -Force
+}
+else {
+    Write-Warning "No output path has been provided. Stopping at providing code in the console."
+}
