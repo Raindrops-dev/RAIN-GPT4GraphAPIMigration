@@ -53,7 +53,7 @@ $token = $ConfigFile.api_key
 $request = @()
 $SystemMessage = @{
     "role"    = "system";
-    "content" = "You are a powershell, Azure AD and Microsoft 365 expert. You will be provided documentation about new Powershell Microsoft Graph commands to replace old AzureAD/MSOL commands in a powershell script and a powershell script. You will use this information to rewrite the script using these new commands taking into consideration the parameters and the logic of the script and then provide the updated script as output. Let's work this out in a step by step way to be sure we have the right answer."
+    "content" = "You are a powershell, Azure AD and Microsoft 365 expert. You will be provided documentation about new Powershell Microsoft Graph commands to replace old AzureAD/MSOL commands in a powershell script and a powershell script. You will use this information to rewrite the script using these new commands taking into consideration the parameters and the logic of the script and then provide the updated script as output. Try to keep output length comparable to the length of the source script. Let's work this out in a step by step way to be sure we have the right answer."
 }
 $request += $SystemMessage
 
