@@ -75,7 +75,7 @@ function Get-AzureADMSOLCommands {
     )
 
     begin {
-        $regex = "((Get|Set|New|Remove)-((AzureAD|MSOL)[\w-]+))"
+        $regex = "(?i)((Get|Set|New|Remove)-((AzureAD|MSOL)[\w-]+))"
     }
 
     process {
@@ -85,4 +85,48 @@ function Get-AzureADMSOLCommands {
 
         return $commands
     }
+}
+
+function Get-OpenAIAnswer {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$APIkey,
+        [Parameter(Mandatory = $true, Position = 1)]
+        [System.Object[]]$Request
+    )
+    #Defining the request headers
+    $Headers = [ordered]@{
+        "Content-Type"  = "application/json";
+        "Authorization" = "Bearer $APIkey"
+    }
+    #Defining the request body
+    $RequestBody = [ordered]@{
+        "model"    = "gpt-4";
+        "messages" = $Request
+    } | ConvertTo-Json -Depth 99
+
+    #Accounting for error "That model is currently overloaded with other requests." and retrying it query failed. Retry after 1 second for up to 5 times
+    for ($i = 0; $i -lt 5; $i++) {
+        try {
+            #Using stopwatch to measure the time it takes to get a response from OpenAI
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
+            #Doing the API call
+            $response = Invoke-WebRequest https://api.openai.com/v1/chat/completions -Method POST -Body $RequestBody -Headers $Headers
+            #Stopping the stopwatch
+            $sw.Stop()
+            #Writing the time it took to get a response from OpenAI in seconds
+            Write-Host "Time to get a response from OpenAI: $($sw.Elapsed.TotalSeconds) seconds" -ForegroundColor Green
+            break
+        }
+        catch {
+            Write-Warning "That model is currently overloaded with other requests. Retrying in 1 second..."
+            Write-Output $_.Exception.Response
+            Start-Sleep -Seconds 1
+        }
+    }
+    # echo the 'content' field of the response which is in JSON format
+    $content = ConvertFrom-Json $response.Content | Select-Object -ExpandProperty choices | Select-Object -ExpandProperty message | Select-Object -ExpandProperty content
+
+    return $content
 }

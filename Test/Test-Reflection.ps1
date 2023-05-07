@@ -82,7 +82,7 @@ $AssistantResponse
 
 $request += @{
     "role"    = "assistant";
-    "content" = $Command
+    "content" = $AssistantResponse
 }
 
 $request += @{
