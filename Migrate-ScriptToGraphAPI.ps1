@@ -49,6 +49,14 @@ Write-Host "Importing configuration..."
 $ConfigFile = Get-Content -Path "$RootDir\config.json" | ConvertFrom-Json
 $token = $ConfigFile.api_key
 
+#Preparing the request
+$request = @()
+$SystemMessage = @{
+    "role"    = "system";
+    "content" = "You are a powershell, Azure AD and Microsoft 365 expert. You will be provided documentation about new Powershell Microsoft Graph commands to replace old AzureAD/MSOL commands in a powershell script and a powershell script. You will use this information to rewrite the script using these new commands taking into consideration the parameters and the logic of the script and then provide the updated script as output. Try to keep output length comparable to the length of the source script. Let's work this out in a step by step way to be sure we have the right answer."
+}
+$request += $SystemMessage
+
 #Importing markdown data for matching commands between AzureAD/MSOL and Microsoft Graph
 Write-Host "Importing command mapping..."
 $CommandMapping = Get-CommandMapping
@@ -60,9 +68,12 @@ $ScriptTosend += "Script To Update:"
 $RawScript = Get-Content -Path $ScriptPath -Raw
 $ScriptTosend += $RawScript
 
+$RawScript
+
 #Getting the list of commands from the script
 Write-Host "Getting commands from script..."
 $ScriptCommands = Get-AzureADMSOLCommands -ScriptContent $RawScript
+$ScriptCommands
 
 #For each command, getting the corresponding Microsoft Graph command and throw an error if no match is found. Create a variable containing these matches
 Write-Host "Getting corresponding Microsoft Graph commands..."
@@ -76,6 +87,7 @@ foreach ($Command in $ScriptCommands) {
         throw "No match found for $($Command)"
     }
 }
+$GraphCommands
 
 #For each command, getting the help text, cleaning it up using Get-HelpString and then adding it all as raw text to a variable
 Write-Host "Getting help text for Microsoft Graph commands..."
@@ -86,69 +98,79 @@ foreach ($Command in $GraphCommands) {
     $GraphHelpText += $HelpText
 }
 
+#Adding the help text to the request
+$request += @{
+    "role"    = "user";
+    "content" = $GraphHelpText
+}
+
+#Adding the script to the request
+$request += @{
+    "role"    = "user";
+    "content" = "Script To Update: $RawScript"
+}
+
 #Starting GPT4 code
-#Defining GPT4 Request
 Write-Host "Starting GPT4 request..."
-$FinalRequest = @()
-$FinalRequest += $GraphHelpText
-$FinalRequest += $ScriptTosend
+$request
 
-#Defining the request headers
-$Headers = [ordered]@{
-    "Content-Type"  = "application/json";
-    "Authorization" = "Bearer $token"
+#Sending request
+$AssistantResponse = Get-OpenAIAnswer -APIkey $token -Request $request
+Write-Host $AssistantResponse -ForegroundColor Green
+
+#Starting Reflection
+Write-Output "Starting reflection..."
+$request += @{
+    "role"    = "assistant";
+    "content" = $AssistantResponse
 }
 
-#Defining the request body
-Write-Host "Defining the request body..."
-$RequestBody = [ordered]@{
-    "model"    = "gpt-4";
-    "messages" = @(
-        @{
-            "role"    = "system";
-            "content" = "You are a helpful assistant. You will be provided documentation about new Powershell Microsoft Graph commands to replace old AzureAD/MSOL commands in a powershell script and a powershell script. You will use this information to rewrite the script using these new commands taking into consideration the parameters and the logic of the script and then provide the updated script as output."
-        }, @{
-            "role"    = "user";
-            "content" = "$FinalRequest"
-        }
-    )
-} | ConvertTo-Json -Depth 99
-$RequestBody
+$request += @{
+    "role"    = "user";
+    "content" = "Is the provided code correct?"
+}
 
-#Accounting for error "That model is currently overloaded with other requests." and retrying it query failed. Retry after 1 second for up to 5 times
-Write-Host "Accounting for error 'That model is currently overloaded with other requests.' and retrying it query failed. Retry after 1 second for up to 5 times..."
-for ($i = 0; $i -lt 5; $i++) {
-    try {
-        #Using stopwatch to measure the time it takes to get a response from OpenAI
-        $sw = [System.Diagnostics.Stopwatch]::StartNew()
-        #Doing the API call
-        $response = Invoke-WebRequest https://api.openai.com/v1/chat/completions -Method POST -Body $RequestBody -Headers $Headers
-        #Stopping the stopwatch
-        $sw.Stop()
-        #Writing the time it took to get a response from OpenAI in seconds
-        Write-Host "Time to get a response from OpenAI: $($sw.Elapsed.TotalSeconds) seconds" -ForegroundColor Green
-        break
+$AssistantResponse = Get-OpenAIAnswer -APIkey $token -Request $request
+Write-Host $AssistantResponse -ForegroundColor Green
+
+$request += @{
+    "role"    = "assistant";
+    "content" = $AssistantResponse
+}
+
+#Starting open communication
+while ($true) {
+    #Getting the user's prompt
+    $userprompt = Read-Host "Please provide your prompt"
+    $UserMessage = @{
+        "role"    = "user";
+        "content" = $userprompt
     }
-    catch {
-        Write-Warning "That model is currently overloaded with other requests. Retrying in 1 second..."
-        Write-Output $_.Exception.Response
-        Start-Sleep -Seconds 1
-    }
-}
-  
-# echo the 'content' field of the response which is in JSON format
-$content = ConvertFrom-Json $response.Content | Select-Object -ExpandProperty choices | Select-Object -ExpandProperty message | Select-Object -ExpandProperty content
-Write-Host "Your query was:" -ForegroundColor Green
-Write-Output $FinalRequest
-Write-Host "The response from OpenAI was:" -ForegroundColor Green
-Write-Output $content
+    $request += $UserMessage
+    
+    #Outputting the current request for debugging purposes
+    Write-Output "Current request:"
+    Write-Output $request
 
-#Saving the output to a file
-Write-Output "Checking if the output path has been provided to save the output to a file..."
-if ($OutputPath) {
-    Write-Output "Output path has been provided. Saving the output to a file..."
-    $content | Out-File -FilePath $OutputPath -Force
+    #Sending request
+    #Using stopwatch to measure the time it takes to get a response from OpenAI
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    #Doing the API call
+    $AssistantResponse = Get-OpenAIAnswer -APIkey $token -Request $request
+    #Stopping the stopwatch
+    $sw.Stop()
+    #Writing the time it took to get a response from OpenAI in seconds
+    Write-Host "Time to get a response from OpenAI: $($sw.Elapsed.TotalSeconds) seconds" -ForegroundColor Red
+
+    #Adding the answer to the request
+    $AssistantMessage = @{
+        "role"    = "assistant";
+        "content" = $AssistantResponse
+    }
+    $request += $AssistantMessage
+
+    #Providing the user with the answer
+    Write-Host $AssistantResponse -ForegroundColor Green
+
 }
-else {
-    Write-Warning "No output path has been provided. Stopping at providing code in the console."
-}
+

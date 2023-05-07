@@ -100,7 +100,7 @@ $RequestBody = [ordered]@{
     "messages" = @(
         @{
             "role"    = "system";
-            "content" = "You are a helpful assistant. You will be provided documentation about new Powershell Microsoft Graph commands to replace old AzureAD/MSOL commands in a powershell script and a powershell script. You will use this information to rewrite the script using these new commands taking into consideration the parameters and the logic of the script and then provide the updated script as output."
+            "content" = "You are a helpful assistant. You will be provided documentation about new Powershell Microsoft Graph commands to replace old AzureAD/MSOL commands in a powershell script and a powershell script. You will use this information to rewrite the script using these new commands taking into consideration the parameters and the logic of the script and then provide the updated script as output. If the script consists of a single command, provide a single command as output."
         }, @{
             "role"    = "user";
             "content" = "$FinalRequest"
