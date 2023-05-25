@@ -120,8 +120,8 @@ function Get-OpenAIAnswer {
             break
         }
         catch {
-            Write-Warning "That model is currently overloaded with other requests. Retrying in 1 second..."
-            Write-Output $_.Exception.Response
+            #Write-Warning "That model is currently overloaded with other requests. Retrying in 1 second..."
+            Write-Warning "$_.Exception.Response"
             Start-Sleep -Seconds 1
         }
     }

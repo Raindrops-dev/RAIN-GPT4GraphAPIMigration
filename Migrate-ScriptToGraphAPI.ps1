@@ -95,13 +95,13 @@ $GraphHelpText = @()
 $GraphHelpText += "Documentation:"
 foreach ($Command in $GraphCommands) {
     $HelpText = Get-HelpString -Command $Command
-    $GraphHelpText += $HelpText
+    $GraphHelpText += "$HelpText"
 }
 
 #Adding the help text to the request
 $request += @{
     "role"    = "user";
-    "content" = $GraphHelpText
+    "content" = "$GraphHelpText"
 }
 
 #Adding the script to the request
